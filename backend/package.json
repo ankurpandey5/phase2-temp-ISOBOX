@@ -1,0 +1,14 @@
+{
+  "name": "isobox-backend",
+  "version": "1.0.0",
+  "description": "Backend server to run the ISO-BOX C++ container.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-pty": "^1.0.0",
+    "ws": "^8.13.0"
+  }
+}
