@@ -13,7 +13,7 @@ void setupCgroup(int pid, const std::string& containerName) {
         cpuFile << "50000 100000";
         cpuFile.close();
     }
-
+//ram allocated to the container
     std::ofstream memFile(cgroupPath + "/memory.max");
     if (memFile.is_open()) {
         memFile << "500M";

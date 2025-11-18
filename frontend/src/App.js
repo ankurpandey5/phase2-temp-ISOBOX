@@ -5,6 +5,34 @@ import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from '
 import 'xterm/css/xterm.css';
 import './App.css';
 
+
+// --- AlertModal  ---
+const AlertModal = ({ alert, onDismiss, onConfirmKill }) => {
+    if (!alert) return null;
+
+    return (
+        <div className="modal-backdrop">
+            <div className={`modal-content ${alert.level}`}>
+                <div className="modal-header">
+                    <span className="modal-title">{alert.level.toUpperCase()}!</span>
+                    <button onClick={onDismiss} className="modal-close-btn">X</button>
+                </div>
+                <div className="modal-body">
+                    {alert.message}
+                </div>
+                {(alert.level === 'warning' || alert.level === 'critical') && (
+                    <div className="modal-footer">
+                        <button onClick={onConfirmKill} className="modal-kill-btn">
+                            Kill Container
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+// --- END OF AlertModal ---
+
 // Custom Label component for the center of the chart
 const ChartLabel = ({ viewBox, value, unit }) => {
   const { cx, cy } = viewBox;
@@ -31,9 +59,11 @@ function App() {
     memory: { current: 0, limit: 524288000 },
     cpu: { usage: 0, limit: 50 }
   });
+  
+  // const [procTree, setProcTree] = useState(''); // --- REMOVED ---
+  const [alert, setAlert] = useState(null);
 
   useEffect(() => {
-    // This effect sets up the terminal and only runs once. It's correct.
     if (terminalRef.current && !termInstance.current) {
       const fitAddon = new FitAddon();
       const term = new Terminal({ convertEol: true, cursorBlink: true, rows: 20, theme: { background: '#1e2a38' } });
@@ -52,8 +82,8 @@ function App() {
       return () => {
         window.removeEventListener('resize', resizeListener);
         if (termInstance.current) {
-          termInstance.current.dispose();
-          termInstance.current = null;
+            termInstance.current.dispose();
+            termInstance.current = null;
         }
       };
     }
@@ -63,6 +93,8 @@ function App() {
     const term = termInstance.current;
     if (!term) return;
     term.clear();
+    // setProcTree(''); // --- REMOVED ---
+    setAlert(null); 
     term.writeln('Connecting to ISO-BOX server...');
     ws.current = new WebSocket('ws://localhost:3001');
 
@@ -76,11 +108,16 @@ function App() {
       try {
         const messageData = JSON.parse(event.data);
         if (messageData.type === 'stats') {
-          // Here is where we receive the stats from the backend
           setStats(messageData);
         }
+        // --- REMOVED 'proc_tree' logic ---
+        if (messageData.type === 'alert') {
+            setAlert(messageData);
+            if (messageData.level === 'info') {
+                setTimeout(() => setAlert(null), 3000); 
+            }
+        }
       } catch (e) {
-        // This handles regular terminal output
         term.write(event.data);
       }
     };
@@ -88,6 +125,8 @@ function App() {
     ws.current.onclose = () => {
       setIsContainerRunning(false);
       setStats({ memory: { current: 0, limit: 524288000 }, cpu: { usage: 0, limit: 50 } });
+      // setProcTree(''); // --- REMOVED ---
+      setAlert(null);
       term.writeln('\n\n\x1b[31m--- CONTAINER STOPPED OR DISCONNECTED ---\x1b[0m');
     };
 
@@ -100,24 +139,32 @@ function App() {
   const stopContainer = () => {
     if (ws.current) ws.current.close();
   };
-  
-  // --- FIX APPLIED: Correct data preparation for charts ---
 
-  // Memory Chart Data
+  // --- REMOVED 'refreshProcTree' function ---
+  
+  const killContainerFromModal = () => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({ type: 'KILL_CONTAINER' }));
+    }
+    setAlert(null); // Close the modal
+  };
+  
   const memUsageMB = stats.memory.current / (1024 * 1024);
   const memLimitMB = stats.memory.limit / (1024 * 1024);
   const memPercent = memLimitMB > 0 ? (memUsageMB / memLimitMB) * 100 : 0;
   const memData = [{ name: 'Memory', value: memPercent }];
-
-  // CPU Chart Data
-  // 'stats.cpu.usage' is the container's usage of a single core (e.g., 45.7%)
-  // 'stats.cpu.limit' is the cap we set (50%)
-  // We calculate what percentage of the CAP is being used.
   const cpuPercentOfLimit = stats.cpu.limit > 0 ? (stats.cpu.usage / stats.cpu.limit) * 100 : 0;
   const cpuData = [{ name: 'CPU', value: cpuPercentOfLimit }];
 
+
   return (
     <div className="app-container">
+      <AlertModal 
+        alert={alert} 
+        onDismiss={() => setAlert(null)} 
+        onConfirmKill={killContainerFromModal} 
+      />
+      
       <header className="app-header"><h1>ISO-BOX Control Panel</h1></header>
       <div className="main-content">
         <div className="controls-panel">
@@ -138,6 +185,8 @@ function App() {
             <button onClick={startContainer} disabled={isContainerRunning}>Create Container</button>
             <button onClick={stopContainer} disabled={!isContainerRunning} className="stop-button">Stop Container</button>
           </div>
+          
+          {/* --- REMOVED ProcessTree component --- */}
         </div>
         <div className="terminal-container" ref={terminalRef}></div>
         <div className="monitoring-panel">

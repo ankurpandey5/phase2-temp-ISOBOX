@@ -21,11 +21,10 @@ int childFunc(void* args) {
         return 1;
     }
 
-    
-    // Change the working directory to the root user's home for a clean start.
+   
     if (chdir("/root") != 0) {
         perror("chdir");
-        // We can continue even if this fails, it's not critical
+        // We can continue even if this fails
     }
     
 

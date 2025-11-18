@@ -29,7 +29,8 @@ int main(int argc, char *argv[]) {
     int pid = clone(
         childFunc,
         stackTop,
-        CLONE_NEWPID | CLONE_NEWUTS | CLONE_NEWNS | SIGCHLD,
+        
+        CLONE_NEWPID | CLONE_NEWUTS | CLONE_NEWNS | CLONE_NEWNET | SIGCHLD,
         nullptr
     );
 
@@ -44,13 +45,13 @@ int main(int argc, char *argv[]) {
     // Setup Cgroup for the new process
     setupCgroup(pid, container_Name);
 
-   
+    
     // server to communicate with the container's shell.
     waitpid(pid, nullptr, 0);
 
     // Clean up the cgroup directory after the container stops.
     cleanupCgroup(container_Name);
-   
+    
 
     delete[] stack;
     
